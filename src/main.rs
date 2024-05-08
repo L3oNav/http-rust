@@ -1,6 +1,6 @@
 // Uncomment this block to pass the first stage
 use std::{
-    io::{BufWriter, Write},
+    io::{Write, Read},
     net::TcpListener,
 };
 
@@ -13,10 +13,23 @@ fn main() {
 
     for stream in listener.incoming() {
         match stream {
-            Ok(stream) => {
+            Ok(mut stream) => {
                 println!("accepted new connection");
-                let mut writer = BufWriter::new(&stream);
-                writer.write_all(b"HTTP/1.1 200 OK\r\n\r\n").unwrap();
+                let mut resquest = [0; 1024];
+                let end = stream.read(&mut resquest).unwrap();
+                let parsed = std::str::from_utf8(&resquest[0..end]).unwrap();
+                let header = parsed.split("\r\n").nth(0).unwrap();
+                let path = header.split(" ").nth(1).unwrap();
+                println!("{:?}", path);
+                if path == "/" {
+                    stream
+                        .write_all("HTTP/1.1 200 OK\r\n\r\n".as_bytes())
+                        .unwrap();
+                } else {
+                    stream
+                        .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
+                        .unwrap();
+                }
             }
             Err(e) => {
                 println!("error: {}", e);
